@@ -1,0 +1,73 @@
+name: Build Android APK
+
+on:
+  push:
+    branches: [ master, main ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        submodules: recursive
+
+    - name: Setup Java
+      uses: actions/setup-java@v4
+      with:
+        distribution: 'zulu'
+        java-version: '17'
+
+    - name: Setup Flutter
+      uses: subosito/flutter-action@v2
+      with:
+        flutter-version: '3.24.0'
+        channel: 'stable'
+
+    - name: Setup Rust
+      uses: dtolnay/rust-toolchain@stable
+
+    - name: Add Rust Android targets
+      run: |
+        rustup target add aarch64-linux-android
+        rustup target add armv7-linux-androideabi
+        rustup target add x86_64-linux-android
+        rustup target add i686-linux-android
+
+    - name: Install Android SDK components
+      run: |
+        echo "y" | ${ANDROID_SDK_ROOT}/cmdline-tools/latest/bin/sdkmanager \
+          "platforms;android-34" \
+          "build-tools;34.0.0" \
+          "ndk;26.1.10909125"
+
+    - name: Flutter pub get
+      working-directory: flutter
+      run: flutter pub get
+
+    - name: Build APK
+      working-directory: flutter
+      run: flutter build apk --release
+      env:
+        ANDROID_NDK_HOME: ${ANDROID_SDK_ROOT}/ndk/26.1.10909125
+
+    - name: Upload APK
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: rustdesk-android-apk
+        path: flutter/build/app/outputs/flutter-apk/*.apk
+        retention-days: 30
+
+    - name: Upload build logs on failure
+      uses: actions/upload-artifact@v4
+      if: failure()
+      with:
+        name: build-logs
+        path: |
+          flutter/build/app/outputs/logs/
+          flutter/.gradle/
