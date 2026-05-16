@@ -120,6 +120,9 @@ Future<void> main(List<String> args) async {
 }
 
 Future<void> initEnv(String appType) async {
+  // Hardcoded server configuration for custom build
+  await _setHardcodedServerConfig();
+
   // global shared preference
   await platformFFI.init(appType);
   // global FFI, use this **ONLY** for global configuration
@@ -591,4 +594,26 @@ Widget keyListenerBuilder(BuildContext context, Widget? child) {
       }
     },
   );
+}
+
+/// Hardcoded server configuration for custom build
+/// This sets the default server settings on app startup
+Future<void> _setHardcodedServerConfig() async {
+  try {
+    // Check if custom server is already configured
+    final existingIdServer = await bind.mainGetOption(key: 'custom-rendezvous-server');
+    
+    // Only set if not already configured (preserve user settings)
+    if (existingIdServer.isEmpty) {
+      await bind.mainSetOption(key: 'custom-rendezvous-server', value: "115.29.198.228");
+      await bind.mainSetOption(key: 'relay-server', value: "115.29.198.228");
+      await bind.mainSetOption(key: 'api-server', value: "");
+      await bind.mainSetOption(key: 'key', value: "btmMgAp63HEMZGE42lySIE1bYQscG7PlXCzsdNZdRSI=");
+      debugPrint('Hardcoded server configuration applied');
+    } else {
+      debugPrint('Custom server already configured, skipping hardcoded values');
+    }
+  } catch (e) {
+    debugPrint('Failed to set hardcoded server config: $e');
+  }
 }
